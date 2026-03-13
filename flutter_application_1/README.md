@@ -1,138 +1,111 @@
-# GymTracker - Aplicación de Seguimiento de Entrenamientos
+# GymTracker
 
-Una aplicación móvil elegante construida con Flutter para registrar y monitorear el progreso de tus entrenamientos. Diseñada para simplificar el registro de pesos levantados, comparar rendimiento con amigos e identificar patrones de mejora a lo largo del tiempo.
+Aplicación de seguimiento de entrenamientos desarrollada con Flutter para registrar cargas, evolución semanal y progreso personal de forma simple y rápida.
 
-## 🎯 Características Principales
+[![Demo Web](https://img.shields.io/badge/Demo%20Web-Probar%20ahora-00C896?style=for-the-badge)](https://paimilla.github.io/app-gimnacio/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
 
-- **📅 Planificación Semanal**: Organiza tus entrenamientos por días y secciones musculares
-- **💪 Registro Rápido**: Registra peso, repeticiones y notas en segundos
-- **📈 Visualización de Progreso**: Gráficos y estadísticas de evolución por ejercicio
-- **👥 Comparación con Amigos**: Registra el peso de tus amigos para entrenar juntos
-- **📸 Fotos de Transformación**: Almacena fotos de tu progreso corporal
-- **💾 Sync Automático**: Todos los datos se guardan localmente
-- **🎨 Diseño Moderno**: Interfaz con colores neón optimizada para UX
+## Demo
 
-## 🛠️ Tecnología
+- Demo web en vivo: https://paimilla.github.io/app-gimnacio/
+- Si no carga al primer intento, recarga con Ctrl+F5.
 
-- **Framework**: Flutter 3.0+
-- **Lenguaje**: Dart
-- **Almacenamiento**: SharedPreferences (local)
-- **Gráficos**: FL Chart
-- **Manejo de Imágenes**: Image Picker
+## ¿Qué puedes hacer en la app?
 
-## 📸 Capturas de la App
+- Planificar entrenamientos por día y grupo muscular.
+- Registrar peso, repeticiones y notas por ejercicio.
+- Comparar progreso con amigos.
+- Visualizar evolución con gráficos.
+- Guardar fotos de transformación corporal.
+- Mantener datos locales sin depender de backend.
 
-![Pantalla de inicio](./assets/icons/Screenshot_1773367574.png)
-![Detalle del entrenamiento](./assets/icons/Screenshot_1773367584.png)
-![Progreso y estadísticas](./assets/icons/Screenshot_1773367588.png)
-![Configuración y perfil](./assets/icons/Screenshot_1773367635.png)
+## Stack técnico
 
-## 📁 Estructura del Proyecto
+- Flutter
+- Dart
+- SharedPreferences
+- FL Chart
+- Image Picker
+- Google Fonts
+- URL Launcher
 
-```
-lib/
-└── main.dart              # Aplicación principal (todo en un archivo por ahora)
-```
+## Capturas
 
-> Nota: actualmente la app vive en un solo archivo. Las carpetas `models/` y `pages/` pueden agregarse más adelante si separas la arquitectura.
+<p align="center">
+  <img src="assets/icons/Screenshot_1773367574.png" alt="Pantalla de inicio" width="220" />
+  <img src="assets/icons/Screenshot_1773367584.png" alt="Detalle del entrenamiento" width="220" />
+  <img src="assets/icons/Screenshot_1773367588.png" alt="Progreso y estadísticas" width="220" />
+  <img src="assets/icons/Screenshot_1773367635.png" alt="Configuración y perfil" width="220" />
+</p>
 
-## 🚀 Cómo Usar
+## Inicio rápido local
 
-### Iniciar Sesión
+Requisitos:
 
-1. Abre la aplicación
-2. Selecciona un día de la semana
-3. Elige un ejercicio
-4. Presiona el ícono **editar** (lápiz)
-5. Haz clic en **"Reg. Peso Hoy"**
-6. Ingresa: peso + reps + notas (opcional)
-7. ¡Listo! Auto-guardado ✓
+- Flutter 3.x
+- Dart SDK 3.x
 
-### Funcionalidades
+Ejecutar el proyecto:
 
-| Función | Descripción |
-|---------|------------|
-| **Crear Sección** | Agrupa ejercicios por grupos musculares |
-| **Nuevo Ejercicio** | Crea un ejercicio con peso y reps iniciales |
-| **Registro Rápido** | Registra solo el peso de hoy sin editar plantilla |
-| **Agregar Amigos** | Registra amigos para comparar progreso |
-| **Ver Gráficos** | Visualiza evolución en la tab "Progresión" |
-| **Fotos** | Almacena fotos con peso registrado |
-
-## 📊 Plan de Entrenamientos Predeterminado
-
-```
-Lunes    → Pecho + Brazos
-Martes   → Espalda
-Miércoles → Piernas
-Jueves   → Hombro
-Viernes  → Pecho + Brazos
-Sábado   → Espalda + Piernas
-Domingo  → Descanso
+```bash
+flutter pub get
+flutter run
 ```
 
-## 💾 Persistencia de Datos
+Build web local:
 
-Todos los datos se guardan **localmente**:
-
-✅ Datos de entrenamientos (ejercicios, pesos, fechas)
-✅ Histórico completo de progreso
-✅ Fotos de transformación corporal
-✅ Información de amigos
-✅ Medidas personales (peso, altura)
-
-## 📦 Instalación
-
-### Requisitos
-
-- Flutter 3.0+
-- Dart 2.17+
-- Android 5.0+ o iOS 11.0+
-
-
-## 🎨 Personalización
-
-### Cambiar Colores
-
-```dart
-const Color _neonCyan = Color(0xFF00F5FF);
-const Color _neonPink = Color(0xFFFF2FB1);
-const Color _neonPurple = Color(0xFF8D4DFF);
-const Color _neonGreen = Color(0xFF5CFF87);
+```bash
+flutter run -d chrome
 ```
 
-### Agregar Ejercicios
+## Estructura actual
 
-Edita `_initializeSampleData()` en `main.dart`:
-
-```dart
-'Pecho': {
-  'exercises': ['Press de banca', 'Aperturas', 'Fondos'],
-  'weights': [80.0, 85.0, 90.0],
-},
+```text
+flutter_application_1/
+├── lib/
+│   └── main.dart
+├── assets/
+├── android/
+├── ios/
+├── web/
+└── pubspec.yaml
 ```
 
-## 🐛 Reporte de Issues
+Nota: hoy la lógica principal vive en un solo archivo (lib/main.dart). Como mejora futura se puede separar en carpetas como pages, models y services.
 
-Para reportar bugs o sugerencias, abre un issue en el repositorio.
+## Roadmap sugerido
 
+- Refactor por capas (pages, models, services).
+- Exportar historial de progreso.
+- Autenticación y sincronización en la nube.
+- Modo entrenador para seguimiento de varios usuarios.
 
-## 👤 Desarrollador
+## Sobre el desarrollador
 
-**Felipe Paimilla**
+Felipe Paimilla
 
-Ingeniero Civil Informático | Universidad de Playa Ancha
+Ingeniero Civil Informático, Universidad de Playa Ancha.
 
-**Experiencia:**
-- Automatización de procesos y sistemas
-- Desarrollo de aplicaciones con Flutter
-- Migración de plataformas CMS
-- Soporte técnico y resolución de problemas
+Experiencia:
 
-**Stack:** Flutter | Dart | Backend | Automatización  
-**GitHub:** [github.com/Fpaimilla](https://github.com/Fpaimilla)
+- Automatización de procesos y sistemas.
+- Desarrollo de aplicaciones con Flutter.
+- Migración de plataformas CMS.
+- Soporte técnico y resolución de problemas.
+
+Stack: Flutter, Dart, Backend y Automatización.
+
+GitHub:
+
+- https://github.com/Paimilla
+- https://github.com/Fpaimilla
+
+## Feedback
+
+Si encuentras un bug o quieres proponer una mejora, abre un issue en el repositorio.
 
 ---
 
-*Construido con ❤️ en Flutter | Marzo 2026*
+Construido con Flutter por Felipe Paimilla.
 
