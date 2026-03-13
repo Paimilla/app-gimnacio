@@ -108,6 +108,10 @@ GitHub:
 - https://github.com/Paimilla
 - https://github.com/Fpaimilla
 
+LinkedIn:
+
+- https://www.linkedin.com/in/felipe-paimilla-4000a2206/
+
 ## Feedback
 
 If you find a bug or want to suggest an improvement, open an issue in the repository.
