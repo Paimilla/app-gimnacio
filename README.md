@@ -2,6 +2,12 @@
 
 Una aplicación móvil elegante construida con Flutter para registrar y monitorear el progreso de tus entrenamientos. Diseñada para simplificar el registro de pesos levantados, comparar rendimiento con amigos e identificar patrones de mejora a lo largo del tiempo.
 
+## 🌐 Probar Demo Web
+
+[![Probar GymTracker](https://img.shields.io/badge/Probar%20GymTracker-Demo%20Web-00C896?style=for-the-badge)](https://paimilla.github.io/app-gimnacio/)
+
+> Si el enlace aún no carga, espera a que termine el workflow **Deploy Flutter Web to GitHub Pages** en la pestaña Actions.
+
 ## 🎯 Características Principales
 
 - **📅 Planificación Semanal**: Organiza tus entrenamientos por días y secciones musculares
