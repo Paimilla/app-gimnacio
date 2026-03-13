@@ -23,10 +23,10 @@ Una aplicación móvil elegante construida con Flutter para registrar y monitore
 ## 📸 Capturas de la App
 
 <p align="center">
-  <img src="assets/icons/Screenshot_1773367574.png" alt="Pantalla de inicio" width="220" />
-  <img src="assets/icons/Screenshot_1773367584.png" alt="Detalle del entrenamiento" width="220" />
-  <img src="assets/icons/Screenshot_1773367588.png" alt="Progreso y estadísticas" width="220" />
-  <img src="assets/icons/Screenshot_1773367635.png" alt="Configuración y perfil" width="220" />
+  <img src="flutter_application_1/assets/icons/Screenshot_1773367574.png" alt="Pantalla de inicio" width="220" />
+  <img src="flutter_application_1/assets/icons/Screenshot_1773367584.png" alt="Detalle del entrenamiento" width="220" />
+  <img src="flutter_application_1/assets/icons/Screenshot_1773367588.png" alt="Progreso y estadísticas" width="220" />
+  <img src="flutter_application_1/assets/icons/Screenshot_1773367635.png" alt="Configuración y perfil" width="220" />
 </p>
 
 ## 📁 Estructura del Proyecto
