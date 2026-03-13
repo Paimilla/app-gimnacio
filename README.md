@@ -1,5 +1,7 @@
 # GymTracker
 
+Language: Español | [English](README.en.md)
+
 Aplicación de seguimiento de entrenamientos desarrollada con Flutter para registrar cargas, evolución semanal y progreso personal de forma simple y rápida.
 
 [![Demo Web](https://img.shields.io/badge/Demo%20Web-Probar%20ahora-00C896?style=for-the-badge)](https://paimilla.github.io/app-gimnacio/)
