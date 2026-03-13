@@ -99,7 +99,7 @@ Stack: Flutter, Dart, Backend y Automatización.
 GitHub:
 
 - https://github.com/Paimilla
-- https://github.com/Fpaimilla
+
 
 LinkedIn:
 
