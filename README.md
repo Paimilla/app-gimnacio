@@ -39,17 +39,10 @@ Una aplicación móvil elegante construida con Flutter para registrar y monitore
 
 ```
 lib/
-├── main.dart              # Aplicación principal
-├── models/
-│   ├── ExerciseWeight    # Registro de peso
-│   ├── Exercise          # Modelo de ejercicio
-│   └── Friend            # Información de amigos
-└── pages/
-    ├── HomePage          # Vista principal
-    ├── DayDetailPage     # Detalles del día
-    ├── ProgressPage      # Estadísticas
-    └── SettingsPage      # Configuración
+└── main.dart              # Aplicación principal (todo en un archivo por ahora)
 ```
+
+> Nota: actualmente la app vive en un solo archivo. Las carpetas `models/` y `pages/` pueden agregarse más adelante si separas la arquitectura.
 
 ## 🚀 Cómo Usar
 
