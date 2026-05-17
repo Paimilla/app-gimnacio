@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter/services.dart';
 
 const Color _neonCyan = Color(0xFF00F5FF);
 const Color _neonPink = Color(0xFFFF2FB1);
@@ -155,6 +158,7 @@ BoxDecoration _appForegroundDecoration() {
 }
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -500,6 +504,55 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class PredefinedExercise {
+  final String name;
+  final String sectionName;
+  final int defaultSeries;
+  final int defaultReps;
+  final double defaultWeightKg;
+
+  const PredefinedExercise({
+    required this.name,
+    required this.sectionName,
+    this.defaultSeries = 4,
+    this.defaultReps = 10,
+    this.defaultWeightKg = 20.0,
+  });
+}
+
+final List<PredefinedExercise> _predefinedExercisesList = [
+  // Pecho
+  PredefinedExercise(name: 'Press de Banca Plano', sectionName: 'Pecho', defaultWeightKg: 40.0),
+  PredefinedExercise(name: 'Press de Banca Inclinado', sectionName: 'Pecho', defaultWeightKg: 30.0),
+  PredefinedExercise(name: 'Aperturas con Mancuernas', sectionName: 'Pecho', defaultWeightKg: 12.0),
+  PredefinedExercise(name: 'Cruces de Polea', sectionName: 'Pecho', defaultWeightKg: 15.0),
+  PredefinedExercise(name: 'Fondos en Paralelas (Pecho)', sectionName: 'Pecho', defaultWeightKg: 0.0),
+  // Espalda
+  PredefinedExercise(name: 'Dominadas Pronas', sectionName: 'Espalda', defaultWeightKg: 0.0),
+  PredefinedExercise(name: 'Remo con Barra', sectionName: 'Espalda', defaultWeightKg: 40.0),
+  PredefinedExercise(name: 'Jalón al Pecho', sectionName: 'Espalda', defaultWeightKg: 35.0),
+  PredefinedExercise(name: 'Remo en Polea Baja', sectionName: 'Espalda', defaultWeightKg: 30.0),
+  PredefinedExercise(name: 'Peso Muerto Convencional', sectionName: 'Espalda', defaultWeightKg: 60.0),
+  // Piernas
+  PredefinedExercise(name: 'Sentadillas con Barra', sectionName: 'Piernas', defaultWeightKg: 50.0),
+  PredefinedExercise(name: 'Prensa de Piernas (Leg Press)', sectionName: 'Piernas', defaultWeightKg: 100.0),
+  PredefinedExercise(name: 'Extensión de Cuádriceps', sectionName: 'Piernas', defaultWeightKg: 25.0),
+  PredefinedExercise(name: 'Curl de Femoral Tumbado', sectionName: 'Piernas', defaultWeightKg: 20.0),
+  PredefinedExercise(name: 'Zancadas con Mancuernas', sectionName: 'Piernas', defaultWeightKg: 10.0),
+  PredefinedExercise(name: 'Elevación de Talones (Pantorrillas)', sectionName: 'Piernas', defaultWeightKg: 30.0),
+  // Hombro
+  PredefinedExercise(name: 'Press Militar con Barra', sectionName: 'Hombro', defaultWeightKg: 25.0),
+  PredefinedExercise(name: 'Press con Mancuernas', sectionName: 'Hombro', defaultWeightKg: 14.0),
+  PredefinedExercise(name: 'Elevaciones Laterales', sectionName: 'Hombro', defaultWeightKg: 8.0),
+  PredefinedExercise(name: 'Pájaros (Elevaciones Posteriores)', sectionName: 'Hombro', defaultWeightKg: 6.0),
+  // Brazos
+  PredefinedExercise(name: 'Curl de Bíceps con Barra', sectionName: 'Brazos', defaultWeightKg: 20.0),
+  PredefinedExercise(name: 'Curl de Bíceps Alterno con Mancuernas', sectionName: 'Brazos', defaultWeightKg: 10.0),
+  PredefinedExercise(name: 'Curl Martillo', sectionName: 'Brazos', defaultWeightKg: 10.0),
+  PredefinedExercise(name: 'Press Francés (Tríceps)', sectionName: 'Brazos', defaultWeightKg: 15.0),
+  PredefinedExercise(name: 'Extensión de Tríceps en Polea Alta', sectionName: 'Brazos', defaultWeightKg: 15.0),
+];
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -514,6 +567,25 @@ class _HomePageState extends State<HomePage> {
   late int _todayIndex;
   bool _showAddSectionForm = false;
   late TextEditingController _sectionNameController;
+  late TextEditingController _searchController;
+  String _searchQuery = '';
+
+  // Variables para agua
+  int _waterDrankMl = 0;
+  final int _waterGoalMl = 3000;
+  String _lastWaterDate = '';
+
+  // Variables para temporizador de descanso
+  int _restSecondsRemaining = 0;
+  int _restDurationSeconds = 60;
+  bool _isTimerRunning = false;
+  Timer? _restTimer;
+
+  // Variables para cronómetro de series
+  bool _isStopwatchActive = false;
+  int _stopwatchSeconds = 0;
+  bool _isStopwatchRunning = false;
+  Timer? _stopwatchTimer;
 
   final List<DayPlan> _week = [
     DayPlan(label: 'Lunes'),
@@ -543,6 +615,7 @@ class _HomePageState extends State<HomePage> {
     _todayIndex = weekdayIndex.clamp(0, _week.length - 1);
     _selectedDayIndex = _todayIndex;
     _sectionNameController = TextEditingController();
+    _searchController = TextEditingController();
     _loadData().then((_) {
       // Si la semana está vacía, crear datos de ejemplo
       if (_week.every((day) => day.sections.isEmpty)) {
@@ -574,6 +647,10 @@ class _HomePageState extends State<HomePage> {
       await prefs.setString('weightUnit', _globalWeightUnit.name);
       await prefs.setString('heightUnit', _globalHeightUnit.name);
       await prefs.setString('themePreset', _globalThemePreset.name);
+
+      // Guardar agua
+      await prefs.setInt('waterDrankMl', _waterDrankMl);
+      await prefs.setString('lastWaterDate', _lastWaterDate);
     } catch (e) {
       debugPrint('Error al guardar: $e');
     }
@@ -638,6 +715,19 @@ class _HomePageState extends State<HomePage> {
         (t) => t.name == savedThemePreset,
         orElse: () => AppThemePreset.neon,
       );
+      
+      // Cargar agua
+      _waterDrankMl = prefs.getInt('waterDrankMl') ?? 0;
+      _lastWaterDate = prefs.getString('lastWaterDate') ?? '';
+      
+      final todayStr = DateTime.now().toString().split(' ')[0];
+      if (_lastWaterDate != todayStr) {
+        _waterDrankMl = 0;
+        _lastWaterDate = todayStr;
+        await prefs.setInt('waterDrankMl', 0);
+        await prefs.setString('lastWaterDate', todayStr);
+      }
+
       _appThemeVersion.value++;
 
       setState(() {});
@@ -755,6 +845,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _sectionNameController.dispose();
+    _searchController.dispose();
+    _restTimer?.cancel();
+    _stopwatchTimer?.cancel();
     super.dispose();
   }
 
@@ -1076,6 +1169,52 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 12),
+                StatefulBuilder(
+                  builder: (context, setModalState) {
+                    return Row(
+                      children: [
+                        () {
+                          final hasPhoto = exercise.photo != null && exercise.photo!.existsSync();
+                          return CircleAvatar(
+                            radius: 26,
+                            backgroundColor: Colors.black12,
+                            backgroundImage: hasPhoto ? FileImage(exercise.photo!) : null,
+                            child: !hasPhoto ? const Icon(Icons.image, size: 24) : null,
+                          );
+                        }(),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final image = await pickImage(context);
+                              if (image != null) {
+                                setModalState(() {
+                                  exercise.photo = image;
+                                });
+                                setState(() {});
+                              }
+                            },
+                            icon: const Icon(Icons.photo_library),
+                            label: const Text('Imagen Portada'),
+                          ),
+                        ),
+                        if (exercise.photo != null && exercise.photo!.existsSync()) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () {
+                              setModalState(() {
+                                exercise.photo = null;
+                              });
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.delete, color: Colors.redAccent),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -1273,6 +1412,724 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  String _formatSeconds(int seconds) {
+    final mins = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  void _toggleTimer() {
+    if (_isTimerRunning) {
+      _restTimer?.cancel();
+      setState(() {
+        _isTimerRunning = false;
+      });
+    } else {
+      if (_restSecondsRemaining == 0) {
+        _restSecondsRemaining = _restDurationSeconds;
+      }
+      setState(() {
+        _isTimerRunning = true;
+      });
+      _restTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          if (_restSecondsRemaining > 1) {
+            _restSecondsRemaining--;
+          } else {
+            _restSecondsRemaining = 0;
+            _isTimerRunning = false;
+            timer.cancel();
+            _showRestFinishedNotification();
+          }
+        });
+      });
+    }
+  }
+
+  void _resetTimer() {
+    _restTimer?.cancel();
+    setState(() {
+      _restSecondsRemaining = 0;
+      _isTimerRunning = false;
+    });
+  }
+
+  void _showRestFinishedNotification() {
+    if (!mounted) return;
+
+    // Alarma física de vibración (3 pulsos intensos con intervalos de 400ms)
+    Future.delayed(Duration.zero, () => HapticFeedback.vibrate());
+    Future.delayed(const Duration(milliseconds: 400), () => HapticFeedback.heavyImpact());
+    Future.delayed(const Duration(milliseconds: 800), () => HapticFeedback.heavyImpact());
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: _themeSuccessColor(),
+        duration: const Duration(seconds: 4),
+        content: Row(
+          children: [
+            const Icon(Icons.alarm_on, color: Colors.black),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                '¡Descanso terminado! Siguiente serie 💪🔥',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _toggleStopwatch() {
+    if (_isStopwatchRunning) {
+      _stopwatchTimer?.cancel();
+      setState(() {
+        _isStopwatchRunning = false;
+      });
+    } else {
+      setState(() {
+        _isStopwatchRunning = true;
+      });
+      _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          _stopwatchSeconds++;
+        });
+      });
+    }
+  }
+
+  void _resetStopwatch() {
+    _stopwatchTimer?.cancel();
+    setState(() {
+      _stopwatchSeconds = 0;
+      _isStopwatchRunning = false;
+    });
+  }
+
+  String _formatStopwatch(int totalSeconds) {
+    final mins = totalSeconds ~/ 60;
+    final secs = totalSeconds % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  void _openQRShareDialog() {
+    final accent = _themeAccentColor();
+    final secondary = _themeSecondaryColor();
+    final currentDay = _week[_selectedDayIndex];
+    final jsonStr = jsonEncode(currentDay.toJson());
+    final base64Str = base64Encode(utf8.encode(jsonStr));
+
+    final importController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return DefaultTabController(
+          length: 2,
+          child: AlertDialog(
+            backgroundColor: _panelBlack,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: accent.withValues(alpha: 0.3)),
+            ),
+            title: TabBar(
+              dividerColor: Colors.transparent,
+              indicatorColor: accent,
+              labelColor: accent,
+              unselectedLabelColor: secondary,
+              tabs: const [
+                Tab(text: 'Compartir'),
+                Tab(text: 'Importar'),
+              ],
+            ),
+            content: SizedBox(
+              width: 320,
+              height: 350,
+              child: TabBarView(
+                children: [
+                  SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: QrImageView(
+                            data: base64Str,
+                            version: QrVersions.auto,
+                            size: 180.0,
+                            gapless: false,
+                            eyeStyle: const QrEyeStyle(
+                              eyeShape: QrEyeShape.square,
+                              color: Colors.black,
+                            ),
+                            dataModuleStyle: const QrDataModuleStyle(
+                              dataModuleShape: QrDataModuleShape.square,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Código QR de tu día: ${currentDay.label}',
+                          style: const TextStyle(fontSize: 12, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: base64Str));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: _themeSuccessColor(),
+                                content: const Text('¡Código copiado al portapapeles! 📋'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.copy),
+                          label: const Text('Copiar código de texto'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Pega el código de rutina copiado para agregarlo a este día:',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: importController,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: 'Pega el código base64 aquí...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  final data = await Clipboard.getData('text/plain');
+                                  if (data?.text != null) {
+                                    importController.text = data!.text!;
+                                  }
+                                },
+                                child: const Text('Pegar Portapapeles'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () {
+                                  final text = importController.text.trim();
+                                  if (text.isEmpty) return;
+                                  try {
+                                    final decodedJson = utf8.decode(base64Decode(text));
+                                    final parsed = jsonDecode(decodedJson) as Map<String, dynamic>;
+                                    final importedDay = DayPlan.fromJson(parsed);
+                                    setState(() {
+                                      _week[_selectedDayIndex].sections.addAll(importedDay.sections);
+                                    });
+                                    _saveData();
+                                    Navigator.of(context).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor: _themeSuccessColor(),
+                                        content: Text('¡Rutina de ${importedDay.label} importada con éxito! 💪⚡'),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor: _themeDangerColor(),
+                                        content: const Text('Código inválido. Asegúrate de copiar el código completo.'),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Text('Confirmar Importar'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUtilityDashboard() {
+    final accent = _themeAccentColor();
+    final secondary = _themeSecondaryColor();
+    final success = _themeSuccessColor();
+    final danger = _themeDangerColor();
+    
+    final isRunning = _isStopwatchActive ? _isStopwatchRunning : _isTimerRunning;
+    final timerBorderColor = isRunning ? accent : accent.withValues(alpha: 0.25);
+    final timerBorderWidth = isRunning ? 1.8 : 1.0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          // Timer/Stopwatch Card
+          Expanded(
+            child: Card(
+              elevation: 4,
+              shadowColor: accent.withValues(alpha: 0.25),
+              color: _panelBlack,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: BorderSide(
+                  color: timerBorderColor,
+                  width: timerBorderWidth,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    // Segmented Tabs
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: () => setState(() => _isStopwatchActive = false),
+                            child: Text(
+                              'Descanso',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: !_isStopwatchActive ? accent : Colors.white54,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '|',
+                            style: TextStyle(fontSize: 10, color: Colors.white24),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => setState(() => _isStopwatchActive = true),
+                            child: Text(
+                              'Cronómetro',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: _isStopwatchActive ? accent : Colors.white54,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Display Icon & Label
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(
+                          _isStopwatchActive ? Icons.alarm : Icons.timer_outlined,
+                          color: accent,
+                          size: 16,
+                        ),
+                        Text(
+                          _isStopwatchActive ? 'Set Timer' : 'Intervalo',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Time text
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _isStopwatchActive
+                            ? _formatStopwatch(_stopwatchSeconds)
+                            : _formatSeconds(_restSecondsRemaining > 0 ? _restSecondsRemaining : _restDurationSeconds),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: ((!_isStopwatchActive && _restSecondsRemaining > 0) || (_isStopwatchActive && _isStopwatchRunning)) ? accent : Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Progress or spacing
+                    if (!_isStopwatchActive && _restSecondsRemaining > 0) ...[
+                      LinearProgressIndicator(
+                        value: _restSecondsRemaining / _restDurationSeconds,
+                        backgroundColor: _panelBlackAlt,
+                        color: accent,
+                        minHeight: 2,
+                      ),
+                      const SizedBox(height: 4),
+                    ] else ...[
+                      const SizedBox(height: 6),
+                    ],
+                    // Controls
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        GestureDetector(
+                          onTap: _isStopwatchActive ? _toggleStopwatch : _toggleTimer,
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: isRunning ? danger : success,
+                            child: Icon(
+                              isRunning ? Icons.pause : Icons.play_arrow,
+                              color: Colors.black,
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            if (_isStopwatchActive) {
+                              _resetStopwatch();
+                            } else {
+                              setState(() {
+                                if (_isTimerRunning || _restSecondsRemaining > 0) {
+                                  _resetTimer();
+                                } else {
+                                  if (_restDurationSeconds == 60) {
+                                    _restDurationSeconds = 90;
+                                  } else if (_restDurationSeconds == 90) {
+                                    _restDurationSeconds = 120;
+                                  } else {
+                                    _restDurationSeconds = 60;
+                                  }
+                                }
+                              });
+                            }
+                          },
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: _panelBlackAlt,
+                            child: Icon(
+                              _isStopwatchActive
+                                  ? Icons.replay
+                                  : ((_isTimerRunning || _restSecondsRemaining > 0) ? Icons.replay : Icons.more_time),
+                              color: Colors.white70,
+                              size: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Water Card
+          Expanded(
+            child: Card(
+              elevation: 4,
+              shadowColor: secondary.withValues(alpha: 0.25),
+              color: _panelBlack,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: BorderSide(
+                  color: secondary.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(Icons.local_drink_outlined, color: secondary, size: 18),
+                        const Text(
+                          'Agua Hoy',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '$_waterDrankMl / $_waterGoalMl ml',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: secondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: (_waterDrankMl / _waterGoalMl).clamp(0.0, 1.0),
+                        backgroundColor: _panelBlackAlt,
+                        color: secondary,
+                        minHeight: 3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _waterDrankMl = (_waterDrankMl + 250).clamp(0, 9999);
+                            });
+                            _saveData();
+                          },
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: secondary,
+                            child: const Icon(
+                              Icons.add,
+                              color: Colors.black,
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _waterDrankMl = 0;
+                            });
+                            _saveData();
+                          },
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: _panelBlackAlt,
+                            child: const Icon(
+                              Icons.refresh,
+                              color: Colors.white70,
+                              size: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    final accent = _themeAccentColor();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+          });
+        },
+        decoration: InputDecoration(
+          labelText: 'Buscar ejercicios...',
+          prefixIcon: Icon(Icons.search, color: accent),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.clear, color: accent),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                  },
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPredefinedSuggestions(List<PredefinedExercise> matching) {
+    if (matching.isEmpty) return const SizedBox.shrink();
+    
+    final accent = _themeAccentColor();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, color: accent, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                'Sugerencias rápidas (Toca para agregar):',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: matching.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final pe = matching[index];
+                return ActionChip(
+                  backgroundColor: _panelBlack,
+                  side: BorderSide(color: accent.withValues(alpha: 0.3)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  avatar: const Icon(Icons.add, size: 14, color: Colors.white70),
+                  label: Text(
+                    '${pe.name} (${pe.sectionName})',
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
+                  ),
+                  onPressed: () => _addPredefinedExercise(pe),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addPredefinedExercise(PredefinedExercise pe) {
+    final currentDay = _week[_selectedDayIndex];
+    
+    // 1. Buscar si la sección ya existe
+    Section? targetSection;
+    for (final section in currentDay.sections) {
+      if (section.name.toLowerCase().trim() == pe.sectionName.toLowerCase().trim()) {
+        targetSection = section;
+        break;
+      }
+    }
+    
+    // 2. Si no existe, crearla y agregarla
+    bool isNewSection = false;
+    if (targetSection == null) {
+      targetSection = Section(name: pe.sectionName);
+      setState(() {
+        currentDay.sections.add(targetSection!);
+      });
+      isNewSection = true;
+    }
+    
+    // 3. Verificar si el ejercicio ya está en la sección para evitar duplicados exactos
+    final exists = targetSection.exercises.any(
+      (e) => e.name.toLowerCase().trim() == pe.name.toLowerCase().trim()
+    );
+    
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: _themeDangerColor(),
+          content: Text(
+            'El ejercicio "${pe.name}" ya existe en la sección "${pe.sectionName}"! ⚠️',
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+      return;
+    }
+    
+    // 4. Crear el ejercicio e incorporarlo
+    final newExercise = Exercise(
+      name: pe.name,
+      series: pe.defaultSeries,
+      reps: pe.defaultReps,
+      weightKg: pe.defaultWeightKg,
+    );
+    
+    // Registrar el peso inicial en el historial
+    newExercise.weightHistory.add(
+      ExerciseWeight(
+        date: DateTime.now(),
+        weightKg: pe.defaultWeightKg,
+        reps: pe.defaultReps,
+        series: pe.defaultSeries,
+        notes: 'Registro inicial sugerido',
+      ),
+    );
+    
+    setState(() {
+      targetSection!.exercises.add(newExercise);
+      // Limpiar búsqueda para ver el ejercicio en su sección
+      _searchQuery = '';
+      _searchController.clear();
+    });
+    
+    _saveData();
+    
+    // 5. Notificar al usuario
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: _themeSuccessColor(),
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: Colors.black),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isNewSection
+                    ? 'Creada sección "${pe.sectionName}" y agregado "${pe.name}"! 💪🔥'
+                    : '¡"${pe.name}" agregado a la sección "${pe.sectionName}"! 💪🔥',
+                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1280,8 +2137,8 @@ class _HomePageState extends State<HomePage> {
         decoration: _appBackgroundDecoration(),
         foregroundDecoration: _appForegroundDecoration(),
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
+            padding: EdgeInsets.zero,
             children: [
               _Reveal(
                 delay: const Duration(milliseconds: 80),
@@ -1332,6 +2189,14 @@ class _HomePageState extends State<HomePage> {
                           Icons.photo_camera,
                           color: _themeSecondaryColor(),
                         ),
+                      ),
+                      IconButton(
+                        onPressed: _openQRShareDialog,
+                        icon: Icon(
+                          Icons.qr_code_2,
+                          color: _themeAccentColor(),
+                        ),
+                        tooltip: 'Compartir/Importar Rutina',
                       ),
                       IconButton(
                         onPressed: () async {
@@ -1403,7 +2268,17 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+              _buildUtilityDashboard(),
+              _buildSearchBar(),
+              () {
+                if (_searchQuery.isEmpty) return const SizedBox.shrink();
+                final matching = _predefinedExercisesList.where(
+                  (pe) => pe.name.toLowerCase().contains(_searchQuery.toLowerCase())
+                ).toList();
+                return _buildPredefinedSuggestions(matching);
+              }(),
+              const SizedBox(height: 16),
               if (!_showAddSectionForm)
                 _Reveal(
                   delay: const Duration(milliseconds: 280),
@@ -1414,7 +2289,7 @@ class _HomePageState extends State<HomePage> {
                       icon: const Icon(Icons.add),
                       label: const Text('Crear sección'),
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 50),
+                        minimumSize: const Size(double.infinity, 44),
                       ),
                     ),
                   ),
@@ -1486,17 +2361,35 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               const SizedBox(height: 12),
-              Expanded(
-                child: _week[_selectedDayIndex].sections.isEmpty
-                    ? _EmptyState(
-                        title: 'Sin secciones',
-                        subtitle: 'Crea una sección para ordenar ejercicios.',
-                        icon: Icons.view_list,
-                      )
-                    : ListView.separated(
+              _week[_selectedDayIndex].sections.isEmpty
+                  ? _EmptyState(
+                      title: 'Sin secciones',
+                      subtitle: 'Crea una sección para ordenar ejercicios.',
+                      icon: Icons.view_list,
+                    )
+                  : () {
+                      final filteredSections = _week[_selectedDayIndex].sections.where((sec) {
+                        if (_searchQuery.isEmpty) return true;
+                        final matchesExercises = sec.exercises.any(
+                          (e) => e.name.toLowerCase().contains(_searchQuery.toLowerCase())
+                        );
+                        return sec.name.toLowerCase().contains(_searchQuery.toLowerCase()) || matchesExercises;
+                      }).toList();
+
+                      if (filteredSections.isEmpty && _searchQuery.isNotEmpty) {
+                        return _EmptyState(
+                          title: 'Sin resultados',
+                          subtitle: 'No encontramos ejercicios que coincidan.',
+                          icon: Icons.search_off,
+                        );
+                      }
+
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                         itemBuilder: (context, index) {
-                          final section = _week[_selectedDayIndex].sections[index];
+                          final section = filteredSections[index];
                           return _Reveal(
                             delay: Duration(milliseconds: 60 * index),
                             child: _ExpandableSectionCard(
@@ -1506,13 +2399,14 @@ class _HomePageState extends State<HomePage> {
                               onEditExercise: _openEditExercise,
                               onRenameSection: () => _renameSection(section),
                               onDeleteSection: () => _deleteSection(section),
+                              searchQuery: _searchQuery,
                             ),
                           );
                         },
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemCount: _week[_selectedDayIndex].sections.length,
-                      ),
-              ),
+                        itemCount: filteredSections.length,
+                      );
+                    }(),
             ],
           ),
         ),
@@ -2490,12 +3384,40 @@ class _BodyProgressPageState extends State<BodyProgressPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Image.file(
-                                        photo.photo,
-                                        width: double.infinity,
-                                        height: 280,
-                                        fit: BoxFit.cover,
-                                      ),
+                                      () {
+                                        final exists = photo.photo.existsSync();
+                                        if (!exists) {
+                                          return Container(
+                                            width: double.infinity,
+                                            height: 280,
+                                            color: _panelBlackAlt,
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.broken_image_outlined,
+                                                  size: 48,
+                                                  color: _themeSecondaryColor().withValues(alpha: 0.5),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  'Imagen ya no disponible en el dispositivo',
+                                                  style: TextStyle(
+                                                    color: _themeSecondaryColor(),
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                        return Image.file(
+                                          photo.photo,
+                                          width: double.infinity,
+                                          height: 280,
+                                          fit: BoxFit.cover,
+                                        );
+                                      }(),
                                       Padding(
                                         padding: const EdgeInsets.fromLTRB(
                                           16,
@@ -3773,6 +4695,7 @@ class _DayDetailPageState extends State<DayDetailPage> {
                               onEditExercise: _openEditExercise,
                               onRenameSection: () => _renameSection(section),
                               onDeleteSection: () => _deleteSection(section),
+                              searchQuery: '',
                             ),
                           );
                         },
@@ -3995,16 +4918,17 @@ class _FriendCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: _panelBlackAlt,
-              backgroundImage: friend.photo == null
-                  ? null
-                  : FileImage(friend.photo!),
-              child: friend.photo == null
-                  ? Icon(Icons.person, size: 26, color: _themeAccentColor())
-                  : null,
-            ),
+            () {
+              final hasPhoto = friend.photo != null && friend.photo!.existsSync();
+              return CircleAvatar(
+                radius: 26,
+                backgroundColor: _panelBlackAlt,
+                backgroundImage: hasPhoto ? FileImage(friend.photo!) : null,
+                child: !hasPhoto
+                    ? Icon(Icons.person, size: 26, color: _themeAccentColor())
+                    : null,
+              );
+            }(),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -4187,6 +5111,7 @@ class _ExpandableSectionCard extends StatefulWidget {
     required this.onEditExercise,
     required this.onRenameSection,
     required this.onDeleteSection,
+    required this.searchQuery,
   });
 
   final Section section;
@@ -4195,6 +5120,7 @@ class _ExpandableSectionCard extends StatefulWidget {
   final Function(Exercise) onEditExercise;
   final VoidCallback onRenameSection;
   final VoidCallback onDeleteSection;
+  final String searchQuery;
 
   @override
   State<_ExpandableSectionCard> createState() => _ExpandableSectionCardState();
@@ -4219,6 +5145,14 @@ class _ExpandableSectionCardState extends State<_ExpandableSectionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final exercisesToShow = widget.searchQuery.isEmpty
+        ? widget.section.exercises
+        : widget.section.exercises.where(
+            (e) => e.name.toLowerCase().contains(widget.searchQuery.toLowerCase())
+          ).toList();
+
+    final isExpanded = _expanded || (widget.searchQuery.isNotEmpty && exercisesToShow.isNotEmpty);
+
     return Card(
       elevation: 4,
       shadowColor: _sectionColor.withValues(alpha: 0.25),
@@ -4245,7 +5179,7 @@ class _ExpandableSectionCardState extends State<_ExpandableSectionCard> {
                     radius: 24,
                     backgroundColor: _sectionColor,
                     child: Icon(
-                      _expanded ? Icons.expand_less : Icons.expand_more,
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
                       color: Colors.black,
                     ),
                   ),
@@ -4263,7 +5197,7 @@ class _ExpandableSectionCardState extends State<_ExpandableSectionCard> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${widget.section.exercises.length} ejercicios',
+                          '${exercisesToShow.length} ejercicios',
                           style: TextStyle(
                             color: Theme.of(
                               context,
@@ -4287,7 +5221,7 @@ class _ExpandableSectionCardState extends State<_ExpandableSectionCard> {
                         icon: Icon(Icons.delete_outline, color: _themeDangerColor()),
                       ),
                       Icon(
-                        _expanded ? Icons.expand_less : Icons.expand_more,
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
                         color: _sectionColor,
                       ),
                     ],
@@ -4296,7 +5230,7 @@ class _ExpandableSectionCardState extends State<_ExpandableSectionCard> {
               ),
             ),
           ),
-          if (_expanded) ...[
+          if (isExpanded) ...[
             Divider(
               color: _sectionColor.withValues(alpha: 0.2),
               height: 1,
@@ -4308,7 +5242,7 @@ class _ExpandableSectionCardState extends State<_ExpandableSectionCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.section.exercises.isEmpty)
+                  if (exercisesToShow.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Center(
@@ -4328,14 +5262,14 @@ class _ExpandableSectionCardState extends State<_ExpandableSectionCard> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemBuilder: (context, index) {
-                        final exercise = widget.section.exercises[index];
+                        final exercise = exercisesToShow[index];
                         return _ExerciseCard(
                           exercise: exercise,
                           onEdit: () => widget.onEditExercise(exercise),
                         );
                       },
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemCount: widget.section.exercises.length,
+                      itemCount: exercisesToShow.length,
                     ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -4359,8 +5293,303 @@ class _ExpandableSectionCardState extends State<_ExpandableSectionCard> {
   }
 }
 
+IconData _getMuscleIcon(String muscleGroup) {
+  switch (muscleGroup.toLowerCase()) {
+    case 'pecho':
+      return Icons.sports_gymnastics;
+    case 'espalda':
+      return Icons.accessibility_new;
+    case 'piernas':
+      return Icons.directions_walk;
+    case 'hombro':
+      return Icons.nordic_walking;
+    case 'brazos':
+      return Icons.bolt;
+    default:
+      return Icons.fitness_center;
+  }
+}
+
+void _showExerciseProgressChart(BuildContext context, Exercise exercise) {
+  final hasHistory = exercise.weightHistory.isNotEmpty;
+  final accent = _themeAccentColor();
+  final success = _themeSuccessColor();
+  final danger = _themeDangerColor();
+  final secondary = _themeSecondaryColor();
+
+  double maxWeight = 0;
+  double minWeight = 0;
+  double latestWeight = 0;
+  List<FlSpot> spots = [];
+
+  if (hasHistory) {
+    latestWeight = exercise.weightHistory.last.weightKg;
+    maxWeight = exercise.weightHistory.map((e) => e.weightKg).reduce((a, b) => a > b ? a : b);
+    minWeight = exercise.weightHistory.map((e) => e.weightKg).reduce((a, b) => a < b ? a : b);
+    for (int i = 0; i < exercise.weightHistory.length; i++) {
+      spots.add(FlSpot(i.toDouble(), _displayWeight(exercise.weightHistory[i].weightKg)));
+    }
+  }
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) {
+      return Container(
+        decoration: BoxDecoration(
+          color: _panelBlack,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: accent.withValues(alpha: 0.3)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 50,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        exercise.name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        'Historial de Carga y Progreso de Fuerza',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (!hasHistory) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: _panelBlackAlt,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: secondary.withValues(alpha: 0.15)),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.analytics_outlined, size: 48, color: secondary.withValues(alpha: 0.6)),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Aún no hay registros de peso para este ejercicio.\n¡Registra tu primera serie hoy para ver tu progreso!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: (MediaQuery.of(context).size.width - 56) / 3,
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: _panelBlackAlt,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: secondary.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Mínimo',
+                          style: TextStyle(fontSize: 10, color: Colors.white60),
+                        ),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${_displayWeight(minWeight).toStringAsFixed(1)} ${_weightUnitLabel()}',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: secondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: (MediaQuery.of(context).size.width - 56) / 3,
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: _panelBlackAlt,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: danger.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Máximo (PR)',
+                          style: TextStyle(fontSize: 10, color: Colors.white60),
+                        ),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${_displayWeight(maxWeight).toStringAsFixed(1)} ${_weightUnitLabel()}',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: danger),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: (MediaQuery.of(context).size.width - 56) / 3,
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: _panelBlackAlt,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: success.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Actual',
+                          style: TextStyle(fontSize: 10, color: Colors.white60),
+                        ),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${_displayWeight(latestWeight).toStringAsFixed(1)} ${_weightUnitLabel()}',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: success),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 200,
+                child: LineChart(
+                  LineChartData(
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      getDrawingHorizontalLine: (value) {
+                        return FlLine(
+                          color: secondary.withValues(alpha: 0.1),
+                          strokeWidth: 1,
+                        );
+                      },
+                    ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border(
+                        bottom: BorderSide(color: secondary.withValues(alpha: 0.2)),
+                        left: BorderSide(color: secondary.withValues(alpha: 0.2)),
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 22,
+                          getTitlesWidget: (value, meta) {
+                            final int idx = value.toInt();
+                            if (idx >= 0 && idx < exercise.weightHistory.length) {
+                              final date = exercise.weightHistory[idx].date;
+                              final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  dateStr,
+                                  style: TextStyle(color: secondary, fontSize: 9),
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              value.toStringAsFixed(1),
+                              style: TextStyle(color: secondary, fontSize: 9),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: spots,
+                        isCurved: true,
+                        color: accent,
+                        barWidth: 3.5,
+                        isStrokeCapRound: true,
+                        dotData: FlDotData(
+                          show: true,
+                          getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                            radius: 4.5,
+                            color: Colors.black,
+                            strokeWidth: 2.5,
+                            strokeColor: accent,
+                          ),
+                        ),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: accent.withValues(alpha: 0.15),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    },
+  );
+}
+
 class _ExerciseCard extends StatelessWidget {
-  const _ExerciseCard({required this.exercise, required this.onEdit});
+  const _ExerciseCard({
+    required this.exercise,
+    required this.onEdit,
+  });
 
   final Exercise exercise;
   final VoidCallback onEdit;
@@ -4382,29 +5611,64 @@ class _ExerciseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         side: BorderSide(color: _themeAccentColor().withValues(alpha: 0.3)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          () {
+            final hasValidPhoto = exercise.photo != null && exercise.photo!.existsSync();
+            if (!hasValidPhoto) return const SizedBox.shrink();
+            return ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+              child: Stack(
+                children: [
+                  Image.file(
+                    exercise.photo!,
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            _panelBlack.withValues(alpha: 0.85),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: _panelBlackAlt,
-                  backgroundImage: exercise.photo == null
-                      ? null
-                      : FileImage(exercise.photo!),
-                  child: exercise.photo == null
-                      ? Icon(Icons.image, size: 24, color: _themeAccentColor())
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (exercise.photo == null || !exercise.photo!.existsSync()) ...[
+                      CircleAvatar(
+                        radius: 26,
+                        backgroundColor: _panelBlackAlt,
+                        child: Icon(
+                          _getMuscleIcon(exercise.muscleGroup),
+                          size: 24,
+                          color: _themeAccentColor(),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                       Text(
                         exercise.name,
                         style: const TextStyle(
@@ -4428,6 +5692,12 @@ class _ExerciseCard extends StatelessWidget {
                                 ? formatWeight(exercise.weightKg)
                                 : formatWeight(0),
                           ),
+                          if (exercise.weightKg > 0 && exercise.reps > 0)
+                            _MetricChip(
+                              label: 'Est. 1RM',
+                              value: formatWeight(exercise.weightKg * (1 + exercise.reps / 30.0)),
+                              color: _themeDangerColor(),
+                            ),
                           if (exercise.lastWeightKg != null)
                             _MetricChip(
                               label: 'Último',
@@ -4444,6 +5714,11 @@ class _ExerciseCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  onPressed: () => _showExerciseProgressChart(context, exercise),
+                  icon: Icon(Icons.analytics_outlined, color: _themeSecondaryColor()),
+                  tooltip: 'Ver Gráfica de Progreso',
                 ),
                 IconButton(
                   onPressed: onEdit,
@@ -4595,7 +5870,9 @@ class _ExerciseCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 }
 
